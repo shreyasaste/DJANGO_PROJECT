@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Database Viewer - Attendance Manager</title>
+    <style>
+        body { 
+            font-family: Arial; 
+            padding: 20px; 
+            background: #0f172a; 
+            color: white; 
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+        }
+        h1 { 
+            color: #a78bfa; 
+            text-align: center; 
+        }
+        .section { 
+            background: #1e293b; 
+            padding: 20px; 
+            margin: 20px 0; 
+            border-radius: 12px; 
+            border: 1px solid #334155; 
+        }
+        h2 { 
+            color: #38bdf8; 
+            margin-top: 0; 
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 10px; 
+        }
+        th { 
+            background: #334155; 
+            padding: 12px; 
+            text-align: left; 
+            color: #a78bfa; 
+            font-weight: bold; 
+        }
+        td { 
+            padding: 10px; 
+            border-bottom: 1px solid #334155; 
+        }
+        tr:hover { 
+            background: #334155; 
+        }
+        .count { 
+            color: #22c55e; 
+            font-size: 24px; 
+            font-weight: bold; 
+        }
+        .status { 
+            padding: 4px 8px; 
+            border-radius: 4px; 
+            font-size: 12px; 
+            font-weight: bold; 
+        }
+        .present { 
+            background: #22c55e; 
+            color: white; 
+        }
+        .absent { 
+            background: #ef4444; 
+            color: white; 
+        }
+        .off { 
+            background: #f59e0b; 
+            color: white; 
+        }
+        button { 
+            background: #6366f1; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            margin: 5px; 
+        }
+        button:hover { 
+            background: #4f46e5; 
+        }
+        .success { 
+            color: #22c55e; 
+        }
+        .error { 
+            color: #ef4444; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Database Viewer - All Your Data</h1>
+        
+        <div style="text-align: center; margin: 20px 0;">
+            <button onclick="loadAllData()">🔄 Refresh All Data</button>
+        </div>
+
+        <div class="section">
+            <h2>👥 Users (<span id="userCount" class="count">0</span>)</h2>
+            <table id="usersTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Username (Email)</th>
+                        <th>Name</th>
+                        <th>Active</th>
+                        <th>Date Joined</th>
+                    </tr>
+                </thead>
+                <tbody id="usersBody"></tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>📚 Subjects (<span id="subjectCount" class="count">0</span>)</h2>
+            <table id="subjectsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Code</th>
+                        <th>Owner</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody id="subjectsBody"></tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>📅 Lectures / Timetable (<span id="lectureCount" class="count">0</span>)</h2>
+            <table id="lecturesTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Subject</th>
+                        <th>Day</th>
+                        <th>Time</th>
+                        <th>Owner</th>
+                    </tr>
+                </thead>
+                <tbody id="lecturesBody"></tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>✅ Attendance Records (<span id="recordCount" class="count">0</span>)</h2>
+            <table id="recordsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Subject</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Lecture Time</th>
+                    </tr>
+                </thead>
+                <tbody id="recordsBody"></tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>⚙️ User Settings (<span id="settingCount" class="count">0</span>)</h2>
+            <table id="settingsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>User</th>
+                        <th>Target Percentage</th>
+                    </tr>
+                </thead>
+                <tbody id="settingsBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8000/api';
+
+        async function apiCall(endpoint) {
+            try {
+                const res = await fetch(`${API_BASE}${endpoint}`, {
+                    credentials: 'include'
+                });
+                return await res.json();
+            } catch (err) {
+                console.error('API Error:', err);
+                return null;
+            }
+        }
+
+        async function loadAllData() {
+            console.log('Loading all data...');
+
+            // Load subjects
+            const subjectsData = await apiCall('/subjects/');
+            if (subjectsData) {
+                displaySubjects(subjectsData.subjects);
+            }
+
+            // Load lectures
+            const lecturesData = await apiCall('/lectures/');
+            if (lecturesData) {
+                displayLectures(lecturesData.lectures, subjectsData.subjects);
+            }
+
+            // Load records
+            const recordsData = await apiCall('/records/');
+            if (recordsData) {
+                displayRecords(recordsData.records, subjectsData.subjects);
+            }
+
+            // Load settings
+            const settingsData = await apiCall('/settings/');
+            if (settingsData) {
+                displaySettings(settingsData);
+            }
+
+            // Load user info
+            const userData = await apiCall('/auth/me/');
+            if (userData) {
+                displayUsers([userData.user]);
+            }
+        }
+
+        function displayUsers(users) {
+            const tbody = document.getElementById('usersBody');
+            tbody.innerHTML = '';
+            document.getElementById('userCount').textContent = users.length;
+
+            users.forEach(user => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${user.id || 'N/A'}</td>
+                        <td>${user.email}</td>
+                        <td>${user.name}</td>
+                        <td>✓ Active</td>
+                        <td>${new Date().toLocaleDateString()}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function displaySubjects(subjects) {
+            const tbody = document.getElementById('subjectsBody');
+            tbody.innerHTML = '';
+            document.getElementById('subjectCount').textContent = subjects.length;
+
+            subjects.forEach(subject => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${subject.id}</td>
+                        <td><strong>${subject.name}</strong></td>
+                        <td>${subject.code || '-'}</td>
+                        <td>Current User</td>
+                        <td>${new Date().toLocaleDateString()}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function displayLectures(lectures, subjects) {
+            const tbody = document.getElementById('lecturesBody');
+            tbody.innerHTML = '';
+            document.getElementById('lectureCount').textContent = lectures.length;
+
+            lectures.forEach(lecture => {
+                const subject = subjects.find(s => s.id === lecture.subject_id);
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${lecture.id}</td>
+                        <td>${subject ? subject.name : 'Unknown'}</td>
+                        <td>${lecture.day}</td>
+                        <td>${lecture.time}</td>
+                        <td>Current User</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function displayRecords(records, subjects) {
+            const tbody = document.getElementById('recordsBody');
+            tbody.innerHTML = '';
+            document.getElementById('recordCount').textContent = records.length;
+
+            records.forEach(record => {
+                const subject = subjects.find(s => s.id === record.subject_id);
+                const statusClass = record.status === 'present' ? 'present' : 
+                                   record.status === 'absent' ? 'absent' : 'off';
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${record.id}</td>
+                        <td>${subject ? subject.name : 'Unknown'}</td>
+                        <td>${record.date}</td>
+                        <td><span class="status ${statusClass}">${record.status.toUpperCase()}</span></td>
+                        <td>${record.lecture_time || '-'}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function displaySettings(settings) {
+            const tbody = document.getElementById('settingsBody');
+            tbody.innerHTML = '';
+            document.getElementById('settingCount').textContent = 1;
+
+            tbody.innerHTML = `
+                <tr>
+                    <td>1</td>
+                    <td>Current User</td>
+                    <td><strong>${settings.target_percentage}%</strong></td>
+                </tr>
+            `;
+        }
+
+        // Load data on page load
+        window.onload = async function() {
+            try {
+                await loadAllData();
+            } catch (err) {
+                alert('Please login first at: http://127.0.0.1:8000/index2.html');
+            }
+        }
+    </script>
+</body>
+</html>

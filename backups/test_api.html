@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test - Attendance Manager</title>
+    <style>
+        body { font-family: Arial; padding: 20px; background: #0f172a; color: white; }
+        .container { max-width: 600px; margin: 0 auto; }
+        button { padding: 10px 20px; margin: 5px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        input { padding: 10px; margin: 5px; border-radius: 8px; border: 1px solid #ccc; width: 200px; }
+        .result { background: #1e293b; padding: 15px; margin: 10px 0; border-radius: 8px; border: 1px solid #334155; }
+        .success { color: #22c55e; }
+        .error { color: #ef4444; }
+        h3 { color: #a78bfa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 API Connection Test</h1>
+        
+        <div class="result" id="status">
+            <h3>Status:</h3>
+            <p>Testing connection...</p>
+        </div>
+        
+        <h3>1. Register New User</h3>
+        <input type="text" id="regName" placeholder="Name">
+        <input type="email" id="regEmail" placeholder="Email">
+        <input type="password" id="regPass" placeholder="Password">
+        <button onclick="testRegister()">Register</button>
+        
+        <h3>2. Login</h3>
+        <input type="email" id="loginEmail" placeholder="Email">
+        <input type="password" id="loginPass" placeholder="Password">
+        <button onclick="testLogin()">Login</button>
+        
+        <h3>3. Add Subject</h3>
+        <input type="text" id="subjectName" placeholder="Subject Name">
+        <button onclick="testAddSubject()">Add Subject</button>
+        
+        <h3>4. Get All Subjects</h3>
+        <button onclick="testGetSubjects()">Get Subjects</button>
+        
+        <div class="result" id="output">
+            <h3>Output:</h3>
+            <pre id="outputText">No data yet...</pre>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8000/api';
+        
+        function updateStatus(message, isError = false) {
+            const status = document.getElementById('status');
+            status.innerHTML = `<h3>Status:</h3><p class="${isError ? 'error' : 'success'}">${message}</p>`;
+        }
+        
+        function updateOutput(data) {
+            document.getElementById('outputText').textContent = JSON.stringify(data, null, 2);
+        }
+        
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const options = {
+                method,
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' }
+            };
+            if (body) options.body = JSON.stringify(body);
+            
+            try {
+                const res = await fetch(`${API_BASE}${endpoint}`, options);
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'API Error');
+                return data;
+            } catch (err) {
+                throw err;
+            }
+        }
+        
+        async function testRegister() {
+            const name = document.getElementById('regName').value;
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPass').value;
+            
+            if (!name || !email || !password) {
+                updateStatus('Please fill all fields', true);
+                return;
+            }
+            
+            try {
+                const result = await apiCall('/auth/register/', 'POST', { name, email, password });
+                updateStatus('✓ Registration successful!');
+                updateOutput(result);
+            } catch (err) {
+                updateStatus('✗ Registration failed: ' + err.message, true);
+            }
+        }
+        
+        async function testLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPass').value;
+            
+            if (!email || !password) {
+                updateStatus('Please fill all fields', true);
+                return;
+            }
+            
+            try {
+                const result = await apiCall('/auth/login/', 'POST', { email, password });
+                updateStatus('✓ Login successful!');
+                updateOutput(result);
+            } catch (err) {
+                updateStatus('✗ Login failed: ' + err.message, true);
+            }
+        }
+        
+        async function testAddSubject() {
+            const name = document.getElementById('subjectName').value;
+            
+            if (!name) {
+                updateStatus('Please enter subject name', true);
+                return;
+            }
+            
+            try {
+                const result = await apiCall('/subjects/', 'POST', { name, code: '' });
+                updateStatus('✓ Subject added!');
+                updateOutput(result);
+            } catch (err) {
+                updateStatus('✗ Failed to add subject: ' + err.message, true);
+            }
+        }
+        
+        async function testGetSubjects() {
+            try {
+                const result = await apiCall('/subjects/');
+                updateStatus('✓ Subjects loaded!');
+                updateOutput(result);
+            } catch (err) {
+                updateStatus('✗ Failed to get subjects: ' + err.message, true);
+            }
+        }
+        
+        // Test connection on load
+        window.onload = async function() {
+            try {
+                const result = await apiCall('/auth/me/');
+                updateStatus('✓ API Connected! Logged in as: ' + result.user.name);
+                updateOutput(result);
+            } catch (err) {
+                updateStatus('✓ API Connected! (Not logged in)');
+            }
+        }
+    </script>
+</body>
+</html>
