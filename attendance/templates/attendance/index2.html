@@ -1,0 +1,535 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Attendance Manager</title>
+<link rel="stylesheet" href="{% static 'attendance/style.css' %}">
+</head>
+<body>
+
+<div id="customModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h3 id="modalTitle">Select Option</h3>
+    <div id="modalBody"></div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeModal()">CANCEL</button>
+      <button class="modal-btn ok" id="modalOkBtn">OK</button>
+    </div>
+  </div>
+</div>
+
+<div id="authPage">
+  <div id="registerView" class="auth-card">
+    <div class="auth-header">
+      <h2 class="auth-title">Create Account</h2>
+      <p class="auth-sub">Start tracking your attendance today</p>
+    </div>
+    <div class="input-group">
+      <label class="input-label">Full Name</label>
+      <input type="text" id="regName" class="auth-input" placeholder="Enter your name">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Email Address</label>
+      <input type="email" id="regEmail" class="auth-input" placeholder="Enter your email id">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Password</label>
+      <input type="password" id="regPass" class="auth-input" placeholder="Min. 4 characters">
+      <span class="password-toggle" onclick="togglePass('regPass')">👁</span>
+    </div>
+    <div class="input-group">
+      <label class="input-label">Confirm Password</label>
+      <input type="password" id="regPassConf" class="auth-input" placeholder="Repeat password">
+    </div>
+    <button class="primary-btn" onclick="doRegister()">Sign Up</button>
+    <div class="switch-auth">Already have an account? <span class="switch-link" onclick="switchAuth('login')">Sign In</span></div>
+  </div>
+
+  <div id="loginView" class="auth-card hidden">
+    <div class="auth-header">
+      <h2 class="auth-title">Welcome Back</h2>
+      <p class="auth-sub">Enter credentials to access dashboard</p>
+    </div>
+    <div class="input-group">
+      <label class="input-label">Email</label>
+      <input type="email" id="loginEmail" class="auth-input" placeholder="Enter your email id">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Password</label>
+      <input type="password" id="loginPass" class="auth-input" placeholder="Enter password">
+      <span class="password-toggle" onclick="togglePass('loginPass')">👁</span>
+    </div>
+    <button class="primary-btn" onclick="doLogin()">Sign In</button>
+    <div class="switch-auth">New user? <span class="switch-link" onclick="switchAuth('register')">Create Account</span></div>
+  </div>
+</div>
+
+<div id="mainApp" class="hidden">
+  <div id="menuOverlay" onclick="if(event.target === this) closeMenu()">
+    <div class="menu-drawer">
+      <div class="close-menu" onclick="closeMenu()">✕</div>
+      <div class="menu-item" onclick="nav('todayPage')">Today <span>→</span></div>
+      <div class="menu-item" onclick="nav('ttPage')">Timetable <span>→</span></div>
+      <div class="menu-item" onclick="nav('calendarPage')">Calendar <span>→</span></div>
+      <div class="menu-item" onclick="nav('subjectsPage')">Subjects <span>→</span></div>
+      <div class="menu-item" onclick="nav('settingsPage')">Settings <span>→</span></div>
+    </div>
+  </div>
+
+  <div class="app">
+    <div class="header">
+      <div class="header-left"><div id="date"></div><div id="overallPctHeader">0% Overall</div></div>
+      <div class="header-right">
+        <div class="target-badge"><span class="target-label">Goal</span><span class="target-val" id="targetBadge">80%</span></div>
+        <button class="plus-btn" onclick="handleUniversalAdd()">+</button>
+        <button class="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+
+    <div id="todayPage">
+      <div id="smartSuggestionContainer"></div>
+      <div id="todayContainer"></div>
+    </div>
+    
+    <div id="ttPage" class="hidden">
+      <div style="display:flex; gap:10px; padding:10px 15px; overflow-x:auto;" id="dayTabs"></div>
+      <div class="card">
+        <h3 id="ttDayTitle" style="margin:0; font-size:16px; color: #38bdf8; text-transform:uppercase;">Monday</h3>
+        <p class="hint-pill" style="margin-top:10px;">💡 Tip: Tap time to edit • Tap X to remove</p>
+        <div id="lectureList"></div>
+      </div>
+    </div>
+
+    <div id="calendarPage" class="hidden">
+      <div class="card"><h3>Calendar</h3><div id="calendarDays" class="calendar-grid"></div></div>
+      <div id="daySummary" class="card hidden">
+        <h3 id="summaryDate" style="margin:0; font-size:16px; color:#38bdf8;"></h3>
+        <p class="hint-pill" style="margin-top:10px;">💡 Tip: Tap any subject below to change status</p>
+        <div id="summaryList"></div>
+      </div>
+    </div>
+
+    <div id="subjectsPage" class="hidden">
+      <div class="card">
+        <h3 style="margin:0 0 10px 0; font-weight: 800;">All Subjects</h3>
+        <div class="hint-pill">💡 Tip: Tap subject name for History & Prediction</div>
+        <div id="subjectList" style="margin-top:15px;"></div>
+      </div>
+    </div>
+    
+    <div id="settingsPage" class="hidden">
+      <div class="card"><h3>Criteria</h3>
+        <select id="targetDropdown" onchange="updateCriteria()">
+          <option value="75">75%</option>
+          <option value="80">80%</option>
+          <option value="85">85%</option>
+          <option value="90">90%</option>
+        </select>
+      </div>
+      <div class="card">
+        <button style="width:100%; padding:14px; border-radius:12px; background:rgba(255,255,255,0.1); color:white; border:none; margin-bottom:12px; font-weight:700;" onclick="logoutUser()">Log Out</button>
+        <button style="width:100%; padding:14px; border-radius:12px; background:rgba(239, 68, 68, 0.2); color:#fca5a5; border:1px solid rgba(239, 68, 68, 0.3); font-weight:700;" onclick="resetAll()">Reset App Data</button>
+      </div>
+    </div>
+
+    <div class="footer-progress">
+      <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:800; color:#cbd5e1;"><span>Performance</span><span id="footerPct">0%</span></div>
+      <div class="progress-bg"><div id="footerBar" class="progress-fill"></div></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- API Integration Scripts -->
+<script src="{% static 'attendance/app-api.js' %}"></script>
+<script src="{% static 'attendance/storage-adapter.js' %}"></script>
+
+<script>
+window.addEventListener('DOMContentLoaded', async () => {
+  const DAYS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  let targetGoal = 80, todayIdx = (new Date().getDay() + 6) % 7, currentDayIdx = todayIdx, activePage = "todayPage";
+  let apiStorage = window.apiStorage;
+
+  window.showModal = function(title, type, options = []) {
+    return new Promise(resolve => {
+      const overlay = document.getElementById('customModal'); const body = document.getElementById('modalBody'); const okBtn = document.getElementById('modalOkBtn');
+      document.getElementById('modalTitle').innerText = title; body.innerHTML = ""; overlay.classList.remove('hidden');
+      if (type === 'input') {
+        const input = document.createElement('input'); input.className = 'modal-input'; input.placeholder = "Type here..."; body.appendChild(input); input.focus();
+        okBtn.onclick = () => { resolve(input.value); closeModal(); };
+      } 
+      else if (type === 'time') {
+        const input = document.createElement('input'); input.type = 'time'; input.className = 'modal-input'; input.style.textAlign = 'center';
+        body.appendChild(input); input.focus();
+        okBtn.onclick = () => { 
+          const val = input.value;
+          if(val) { let [h, m] = val.split(':'); let ampm = h >= 12 ? 'PM' : 'AM'; h = h % 12; h = h ? h : 12; resolve(`${h}:${m} ${ampm}`); } 
+          else { resolve(null); }
+          closeModal(); 
+        };
+      }
+      else if (type === 'list') {
+        options.forEach((opt, idx) => {
+          const item = document.createElement('div'); 
+          item.className = 'modal-item'; 
+          item.innerText = `${idx+1}. ${opt}`;
+          item.style.userSelect = 'none';
+          item.addEventListener('click', (e) => { 
+            e.stopPropagation();
+            console.log('Modal item clicked:', idx, opt);
+            closeModal(); 
+            resolve(idx); 
+          }); 
+          body.appendChild(item);
+        });
+        okBtn.classList.add('hidden');
+      }
+    });
+  }
+  window.closeModal = function() { document.getElementById('customModal').classList.add('hidden'); document.getElementById('modalOkBtn').classList.remove('hidden'); }
+
+  window.switchAuth = function(mode) {
+    if (mode === 'login') { document.getElementById('registerView').classList.add('hidden'); document.getElementById('loginView').classList.remove('hidden'); } 
+    else { document.getElementById('loginView').classList.add('hidden'); document.getElementById('registerView').classList.remove('hidden'); }
+  }
+
+  window.togglePass = function(id) {
+    const input = document.getElementById(id); input.type = input.type === "password" ? "text" : "password";
+  }
+
+  window.doRegister = async function() {
+    const name = document.getElementById('regName').value.trim(); const email = document.getElementById('regEmail').value.trim(); const pass = document.getElementById('regPass').value; const conf = document.getElementById('regPassConf').value;
+    if (!name) return alert("Name is required."); if (!email.includes('@') || !email.includes('.')) return alert("Please enter a valid email.");
+    if (pass.length < 4) return alert("Password must be at least 4 characters."); if (pass !== conf) return alert("Passwords do not match.");
+    try {
+      await AttendanceAPI.Auth.register(name, email, pass);
+      await unlock();
+    } catch (err) {
+      alert("Registration failed: " + err.message);
+    }
+  }
+
+  window.doLogin = async function() {
+    const inputEmail = document.getElementById('loginEmail').value.trim(); const inputPass = document.getElementById('loginPass').value;
+    try {
+      await AttendanceAPI.Auth.login(inputEmail, inputPass);
+      await unlock();
+    } catch (err) {
+      alert("Login failed: " + err.message);
+    }
+  }
+
+  window.unlock = async function() { 
+    try {
+      await apiStorage.init();
+      document.getElementById('authPage').classList.add('hidden'); document.getElementById('mainApp').classList.remove('hidden');
+      targetGoal = apiStorage.getTarget();
+      document.getElementById('targetBadge').innerText = targetGoal + "%";
+      document.getElementById('targetDropdown').value = targetGoal;
+      renderAll();
+    } catch (err) {
+      alert("Failed to load data: " + err.message);
+    }
+  }
+
+  document.getElementById('date').innerText = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+
+  function getSubs(){ return apiStorage.getSubjects(); }
+  function getTT(){ return apiStorage.getTimetable(); }
+
+  window.nav = function(p){ activePage=p; ["todayPage","ttPage","calendarPage","subjectsPage","settingsPage"].forEach(id => document.getElementById(id).classList.add("hidden")); document.getElementById(p).classList.remove("hidden"); closeMenu(); renderAll(); }
+  window.toggleMenu = function() { document.getElementById('menuOverlay').classList.toggle('active'); }
+  window.closeMenu = function() { document.getElementById('menuOverlay').classList.remove('active'); }
+  window.handleUniversalAdd = function() { if(activePage === "ttPage") addLecToTT(); else addSubject(); }
+
+  window.switchDay = function(i) {
+    currentDayIdx = i;
+    renderTT();
+  }
+
+  window.renderSmartSuggestion = function() {
+    const s = getSubs(); const tt = getTT();
+    const cont = document.getElementById("smartSuggestionContainer");
+    cont.innerHTML = "";
+    
+    const isTTEmpty = tt.every(day => day.length === 0);
+
+    if(s.length === 0) {
+      cont.innerHTML = `<div class="suggestion-box"><div class="sugg-icon">👋</div><div class="sugg-text"><h4>Welcome!</h4><p>It's empty here. Add your subjects to start tracking.</p><button class="sugg-btn" onclick="addSubject()">+ Add First Subject</button></div></div>`;
+      return;
+    }
+
+    if(isTTEmpty) {
+       cont.innerHTML = `<div class="suggestion-box"><div class="sugg-icon">📅</div><div class="sugg-text"><h4>Setup Schedule!</h4><p>Your subjects are ready. Now, add them to the timetable to track attendance.</p><button class="sugg-btn" onclick="nav('ttPage')">+ Setup Timetable</button></div></div>`;
+       return;
+    }
+
+    let critical = null; let warning = null; 
+    s.forEach(sub => {
+      const tot = sub.att + sub.miss; if(tot === 0) return;
+      const pct = (sub.att / tot) * 100;
+      let need = Math.ceil((targetGoal * tot - 100 * sub.att) / (100 - targetGoal));
+      let buffer = Math.floor((100 * sub.att / targetGoal) - tot);
+      if (pct < targetGoal) { if (!critical || need > critical.need) critical = { ...sub, need, pct }; } 
+      else if (buffer < 2) { if (!warning || buffer < warning.buffer) warning = { ...sub, buffer, pct }; }
+    });
+
+    if (critical) {
+      cont.innerHTML = `<div class="alert-box alert-critical"><div style="font-size:24px">🚨</div><div><h4 style="margin:0; font-size:14px">Focus on ${critical.name}</h4><p style="margin:2px 0 0 0; font-size:11px; opacity:0.8">You are at ${Math.round(critical.pct)}%. Attend next <b>${critical.need}</b> classes.</p></div></div>`;
+    } else if (warning) {
+      cont.innerHTML = `<div class="alert-box alert-warning"><div style="font-size:24px">⚠️</div><div><h4 style="margin:0; font-size:14px">Warning for ${warning.name}</h4><p style="margin:2px 0 0 0; font-size:11px; opacity:0.8">${warning.buffer === 0 ? "Attendance tight! No bunks left." : `Only ${warning.buffer} bunk(s) away from danger.`}</p></div></div>`;
+    } else {
+      cont.innerHTML = `<div class="alert-box alert-safe"><div style="font-size:24px">✅</div><div><h4 style="margin:0; font-size:14px">You are Safe!</h4><p style="margin:2px 0 0 0; font-size:11px; opacity:0.8">All subjects are above ${targetGoal}%.</p></div></div>`;
+    }
+  }
+
+  window.renderAll = function(){
+    renderSmartSuggestion();
+    const subs = getSubs(), tt = getTT(), todayLecs = tt[todayIdx], todayCont = document.getElementById("todayContainer"), subCont = document.getElementById("subjectList");
+    todayCont.innerHTML = subCont.innerHTML = ""; let tA = 0, tL = 0;
+    
+    if (todayLecs.length === 0 && subs.length > 0) { 
+        todayCont.innerHTML = `<div class="card" style="text-align:center; padding:40px; color:#94a3b8;"><b>No lectures today.</b><br><span style="font-size:11px; opacity:0.6;">Enjoy your day!</span></div>`; 
+    } 
+    else {
+      todayLecs.forEach((lec) => {
+        const i = subs.findIndex(s => s.name === lec.name);
+        if (i !== -1) {
+          const s = subs[i], tot = s.att + s.miss, pct = tot ? Math.round((s.att/tot)*100) : 0, status = s.dates?.[new Date().toDateString()] || "";
+          todayCont.innerHTML += `<div class="card"><div class="card-top"><div class="pct-circle" style="border-color:${pct>=targetGoal?'#22c55e':'#ef4444'}"><span class="pct-val">${pct}%</span><span class="pct-goal">/${targetGoal}%</span></div><div style="flex:1"><span class="subject-name">${s.name}</span><span class="advice-text">${tot===0?'No data yet':(pct>=targetGoal?'On track':'Needs attention')}</span></div></div><div class="subject-actions"><button class="icon-btn btn-clear ${status===''?'active-clear':''}" onclick="mark(${i},'clear')">⊘</button><button class="icon-btn btn-off ${status==='off'?'active-off':''}" onclick="mark(${i},'off')">☀</button><button class="icon-btn btn-miss ${status==='miss'?'active-miss':''}" onclick="mark(${i},'miss')">✕</button><button class="icon-btn btn-att ${status==='att'?'active-att':''}" onclick="mark(${i},'att')">✓</button></div></div>`;
+        }
+      });
+    }
+    subs.forEach((s, i) => { tA += s.att; tL += (s.att + s.miss); subCont.innerHTML += `<div class="sub-list-item"><span style="font-weight:800; color:#fff; cursor:pointer; text-decoration:underline; text-decoration-style:dotted; text-decoration-color:#a78bfa;" onclick="openSubOptions(${i})">${s.name}</span><span style="color:#ef4444; font-size:18px; font-weight:bold; cursor:pointer;" onclick="deleteSubject(${i})">✕</span></div>`; });
+    const overall = tL ? Math.round((tA/tL)*100) : 0;
+    document.getElementById("overallPctHeader").innerText = overall + "% Overall";
+    document.getElementById("footerPct").innerText = overall + "%"; document.getElementById("footerBar").style.width = (overall > 100 ? 100 : overall) + "%";
+    if(activePage === "calendarPage") renderCalendar(); if(activePage === "ttPage") renderTT();
+  }
+
+  window.mark = async function(i,type){
+    const s=getSubs(), today=new Date().toDateString(), subject = s[i];
+    try {
+      await apiStorage.markAttendance(subject.id, today, type);
+      await apiStorage.init(true); // Force refresh
+      renderAll();
+    } catch (err) {
+      alert("Failed to mark attendance: " + err.message);
+      console.error('Mark attendance error:', err);
+    }
+  }
+
+  window.addSubject = async function(){ 
+    const name = await showModal("Add Subject", "input"); 
+    if(name){ 
+      try {
+        await apiStorage.addSubject(name);
+        await apiStorage.init();
+        renderAll();
+      } catch (err) {
+        alert("Failed to add subject: " + err.message);
+      }
+    } 
+  }
+  
+  window.deleteSubject = async function(i) { 
+    if(confirm("Delete subject?")) { 
+      const s=getSubs();
+      try {
+        await apiStorage.deleteSubject(s[i].id);
+        await apiStorage.init();
+        renderAll();
+      } catch (err) {
+        alert("Failed to delete subject: " + err.message);
+      }
+    } 
+  }
+
+  window.renderTT = function() {
+    const tabs = document.getElementById("dayTabs"), list = document.getElementById("lectureList"); tabs.innerHTML = list.innerHTML = "";
+    DAYS.forEach((d, i) => tabs.innerHTML += `<button class="day-tab ${i === currentDayIdx ? 'active' : ''}" onclick="switchDay(${i})">${d}</button>`);
+    const now = new Date(); const targetDate = new Date(now); targetDate.setDate(now.getDate() + (currentDayIdx - ((now.getDay() + 6) % 7)));
+    document.getElementById("ttDayTitle").innerText = `${DAYS[currentDayIdx]} (${targetDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })})`;
+    const dayTT = getTT()[currentDayIdx];
+    if (dayTT.length === 0) { list.innerHTML = `<div style="text-align:center; padding:30px; color:#94a3b8; font-weight:700;">No lectures scheduled</div>`; } 
+    else { dayTT.forEach((l, i) => { list.innerHTML += `<div class="tt-item"><div style="flex:1"><div style="font-weight:900;">${l.name}</div><div class="tt-time" onclick="editLecTime(${currentDayIdx}, ${i})">${l.time || 'Set Time'}</div></div><span style="color:#ef4444; font-size:18px; cursor:pointer; font-weight:bold; margin-left:15px;" onclick="delLec(${i})">✕</span></div>`; }); }
+  }
+
+  window.addLecToTT = async function() {
+    const subs = getSubs(); if(subs.length === 0) return alert("Add subjects first!");
+    const idx = await showModal("Select Subject", "list", subs.map(s => s.name));
+    if(idx !== undefined){ 
+      const time = await showModal("Set Lecture Time", "time"); 
+      try {
+        await apiStorage.addLecture(currentDayIdx, subs[idx].name, time || "Time not set");
+        await apiStorage.init();
+        renderAll();
+      } catch (err) {
+        alert("Failed to add lecture: " + err.message);
+      }
+    }
+  }
+
+  window.editLecTime = async function(dayI, lecI) {
+    const newTime = await showModal("Edit Lecture Time", "time"); 
+    if (newTime !== null) { 
+      const tt = getTT(); const lecture = tt[dayI][lecI];
+      try {
+        await apiStorage.updateLectureTime(lecture.id, newTime);
+        await apiStorage.init();
+        renderAll();
+      } catch (err) {
+        alert("Failed to update time: " + err.message);
+      }
+    }
+  }
+
+  window.delLec = async function(idx) { 
+    const tt = getTT(); const lecture = tt[currentDayIdx][idx];
+    try {
+      await apiStorage.deleteLecture(lecture.id);
+      await apiStorage.init();
+      renderTT();
+    } catch (err) {
+      alert("Failed to delete lecture: " + err.message);
+    }
+  }
+
+  window.renderCalendar = function() {
+    const grid = document.getElementById("calendarDays"); grid.innerHTML = ""; const d = new Date(); let firstDay = (new Date(d.getFullYear(), d.getMonth(), 1).getDay() + 6) % 7;
+    for(let i=0; i<firstDay; i++) grid.innerHTML += "<div></div>";
+    const subs = getSubs();
+    for(let i=1; i<=new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); i++) {
+      const dStr = new Date(d.getFullYear(), d.getMonth(), i).toDateString(); let status = null; 
+      subs.forEach(s => { if(s.dates && s.dates[dStr]) status = s.dates[dStr]; });
+      grid.innerHTML += `<div style="padding:10px 0; cursor:pointer;" onclick="showDaySummary('${dStr}')"><div>${i}</div><div class="dot ${status==='att'?'dot-att':(status==='miss'?'dot-miss':(status==='off'?'dot-off':''))}"></div></div>`;
+    }
+  }
+
+  window.showDaySummary = function(dateStr) {
+    const summaryDiv = document.getElementById("daySummary"), list = document.getElementById("summaryList");
+    summaryDiv.classList.remove("hidden"); document.getElementById("summaryDate").innerText = dateStr; list.innerHTML = "";
+    const selectedDayIdx = (new Date(dateStr).getDay() + 6) % 7; const scheduledNames = getTT()[selectedDayIdx].map(lec => lec.name);
+    getSubs().forEach(s => { if(scheduledNames.includes(s.name)) { let status = (s.dates && s.dates[dateStr]) ? s.dates[dateStr] : "none"; let label = status==='att'?'PRESENT':(status==='miss'?'ABSENT':(status==='off'?'OFF DAY':'PENDING')); let col = status==='att'?'#22c55e':(status==='miss'?'#ef4444':(status==='off'?'#f59e0b':'#94a3b8')); list.innerHTML += `<div class="summary-item" onclick="editPastAttendance('${s.name}', '${dateStr}')"><b>${s.name}</b><span style="color:${col}; font-weight:900;">${label}</span></div>`; } });
+    if(list.innerHTML === "") list.innerHTML = `<p style="text-align:center; color:#94a3b8; font-size:12px;">No lectures scheduled.</p>`;
+  }
+
+  window.editPastAttendance = async function(subName, dateStr) {
+    const s = getSubs(); const subject = s.find(sub => sub.name === subName); if(!subject) return;
+    const opt = await showModal(`Edit ${subName}`, "list", ["Present", "Absent", "Off Class", "Clear"]);
+    if(opt === undefined) return;
+    const statusMap = ['att', 'miss', 'off', 'clear']; const status = statusMap[opt];
+    try {
+      await apiStorage.markAttendance(subject.id, dateStr, status);
+      await apiStorage.init();
+      renderAll();
+      showDaySummary(dateStr);
+    } catch (err) {
+      alert("Failed to update attendance: " + err.message);
+    }
+  }
+
+  window.updateCriteria = async function() { 
+    const newTarget = parseInt(document.getElementById('targetDropdown').value);
+    try {
+      await apiStorage.updateTarget(newTarget);
+      targetGoal = newTarget;
+      document.getElementById('targetBadge').innerText = targetGoal + "%";
+      renderAll();
+    } catch (err) {
+      alert("Failed to update target: " + err.message);
+    }
+  }
+  
+  window.logoutUser = async function() {
+    try {
+      // Call logout API to clear server session
+      await AttendanceAPI.Auth.logout();
+      console.log("Logout successful");
+    } catch (err) {
+      console.error("Logout API error:", err);
+      // Continue with client-side cleanup even if API fails
+    }
+    
+    // Clear all cached data
+    if (window.apiStorage) {
+      window.apiStorage.cache = {
+        subjects: [],
+        lectures: [],
+        records: [],
+        target: 80,
+        user: null
+      };
+      window.apiStorage.initialized = false;
+    }
+    
+    // Clear all storage
+    sessionStorage.clear();
+    localStorage.clear();
+    
+    // Hide main app and show auth page immediately
+    document.getElementById('mainApp').classList.add('hidden');
+    document.getElementById('authPage').classList.remove('hidden');
+    
+    // Switch to login view
+    switchAuth('login');
+    
+    // Force reload after a short delay to ensure clean state
+    setTimeout(() => {
+      window.location.href = window.location.href.split('?')[0];
+    }, 200);
+  }
+  
+  window.resetAll = async function() { 
+    if(confirm("Erase all data and logout?")) { 
+      try {
+        await AttendanceAPI.Auth.logout();
+        location.reload();
+      } catch (err) {
+        alert("Logout failed: " + err.message);
+      }
+    } 
+  }
+
+  window.openSubOptions = function(i) {
+    showModal("Options", "list", ["View History", "Predict Future"]).then(opt => { if(opt === 0) showHistory(i); if(opt === 1) predictFuture(i); });
+  }
+
+  window.showHistory = function(i) {
+    const s = getSubs()[i]; const dates = Object.entries(s.dates || {}).sort((a,b) => new Date(b[0]) - new Date(a[0]));
+    let html = `<div style="max-height:300px; overflow-y:auto;">`;
+    if(dates.length === 0) html += `<div style="padding:20px; text-align:center; color:#94a3b8;">No history yet.</div>`;
+    dates.forEach(([d, status]) => {
+        let cls = status==='att'?'hist-att':(status==='miss'?'hist-miss':'hist-off'); let txt = status==='att'?'PRESENT':(status==='miss'?'ABSENT':'OFF');
+        html += `<div class="hist-item"><span style="color:#cbd5e1">${d}</span><span class="${cls}" style="font-weight:900;">${txt}</span></div>`;
+    });
+    html += `</div>`;
+    document.getElementById('modalTitle').innerText = s.name + " History"; document.getElementById('modalBody').innerHTML = html;
+    document.getElementById('customModal').classList.remove('hidden'); document.getElementById('modalOkBtn').classList.remove('hidden'); document.getElementById('modalOkBtn').onclick = closeModal;
+  }
+
+  window.predictFuture = async function(i) {
+    const s = getSubs()[i]; const attend = await showModal("Attending next X classes?", "input"); if(!attend) return;
+    const miss = await showModal("Missing next Y classes?", "input"); if(!miss) return;
+    const a = parseInt(attend)||0, m = parseInt(miss)||0, curTot = s.att + s.miss, newAtt = s.att + a, newTot = curTot + a + m, newPct = newTot === 0 ? 0 : Math.round((newAtt/newTot)*100);
+    const color = newPct >= targetGoal ? '#22c55e' : '#ef4444';
+    const html = `<div class="pred-card"><span class="pred-label">PROJECTED RESULT</span><span class="pred-big-val" style="color:${color}">${newPct}%</span><div class="pred-scenario">IF YOU ATTEND <b>${a}</b> AND MISS <b>${m}</b></div></div>`;
+    document.getElementById('modalTitle').innerText = s.name.toUpperCase(); document.getElementById('modalBody').innerHTML = html;
+    document.getElementById('customModal').classList.remove('hidden'); document.getElementById('modalOkBtn').classList.remove('hidden'); document.getElementById('modalOkBtn').onclick = closeModal;
+  }
+
+  // Initialize auth
+  try {
+    const user = await AttendanceAPI.Auth.getMe();
+    if (user) {
+      await unlock();
+    }
+  } catch (err) {
+    switchAuth('login');
+  }
+});
+</script>
+</body>
+</html>
