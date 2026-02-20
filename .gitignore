@@ -1,0 +1,25 @@
+# Environment variables (contains passwords and secrets)
+.env
+
+# Python virtual environment
+venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Database files
+*.sqlite3
+db.sqlite3
+
+# Backup files
+backups/
+
+# IDE settings
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
